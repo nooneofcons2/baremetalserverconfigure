@@ -1,0 +1,20 @@
+
+# Ports and Protocols for UFW
+firewall_https_port: 443
+firewall_https_protocol: tcp
+firewall_http_port: 80
+firewall_http_protocol: tcp
+loki_port: 3100
+grpc_port: 9095
+
+# ansible_user
+ansible_user: osman
+
+# Loki server endpoint
+loki_server: localhost
+
+# User and ssh key location
+devops_user: devops
+local_ssh_key: /Users/osmanarslan/.ssh/devops/key.pub
+normal_user: bob
+

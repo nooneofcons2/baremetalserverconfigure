@@ -1,0 +1,16 @@
+---
+  - block:
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+    - name: Start nginx
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true # start on the boot
+    - name: Make sure nginx is enabled through systemd
+      ansible.builtin.systemd:
+        name: nginx
+        state: started
+        enabled: true

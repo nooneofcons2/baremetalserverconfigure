@@ -1,0 +1,16 @@
+---
+- name: Bare Metal Server Configure
+  hosts: servers
+  become: true # to run sudo privileges
+  gather_facts: false # for faster execution
+  vars_files:
+    - vars.yml
+    - sudo_password.yml
+
+  roles:
+    - ping_remote_server
+    - allow_ports
+    - web_server
+    - log_shipper
+    - collect_logs
+    - create_users

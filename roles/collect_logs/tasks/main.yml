@@ -1,0 +1,91 @@
+---
+  - block:
+    - name: Install cmd line tools (wget, unzip)
+      ansible.builtin.apt:
+        name:
+          - wget
+          - unzip
+        state: present
+    - name: Download the binary
+      ansible.builtin.get_url:
+        url: "https://github.com/grafana/loki/releases/download/v3.3.2/promtail-linux-amd64.zip"
+        dest: /tmp/promtail-linux-amd64.zip
+        mode: '0644'
+    - name: Unzip the binary
+      ansible.builtin.unarchive:
+        src: /tmp/promtail-linux-amd64.zip
+        dest: /usr/local/bin/ # executables go in here
+        remote_src: true
+        creates: /usr/local/bin/promtail-linux-amd64
+    - name: Check if promtail binary exists
+      ansible.builtin.stat:
+        path: /usr/local/bin/promtail
+      register: promtail_binary
+    - name: Rename binary to correct name
+      ansible.builtin.command:
+        cmd: mv /usr/local/bin/promtail-linux-amd64 /usr/local/bin/promtail
+      when: not promtail_binary.stat.exists
+      changed_when: false
+    - name: Create Promtail configuration directory
+      ansible.builtin.file:
+        path: /etc/promtail
+        state: directory
+        mode: '0755'
+    - name: Create promtail config file promtail.yaml targeted at nginx logs
+      ansible.builtin.copy:
+        dest: /etc/promtail/promtail.yaml
+        content: |
+          server:
+            http_listen_port: 9080
+            grpc_listen_port: 0
+
+          clients:
+            - url: http://{{ loki_server }}:3100/loki/api/v1/push
+
+          positions:
+            filename: /tmp/positions.yaml
+
+          scrape_configs:
+            - job_name: system
+              static_configs:
+                - targets:
+                    - localhost
+                  labels:
+                    job: varlogs
+                    __path__: /var/log/*log
+            - job_name: nginxlogs
+              static_configs:
+                - targets:
+                    - localhost
+                  labels:
+                    job: nginxlogs
+                    __path__: /var/log/nginx/*.log
+        owner: root
+        mode: '0644'
+      tags:
+        - CreatePromtailConfig
+    - name: Create systemd service for promtail
+      ansible.builtin.copy:
+        content: |
+          [Unit]
+          Description=Promtail
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/local/bin/promtail -config.file=/etc/promtail/promtail.yaml
+          Restart=always
+          User=root
+          LimitNOFILE=65536
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/promtail.service
+        mode: '0644'
+    - name: Reload systemd deamon
+      ansible.builtin.systemd:
+        daemon_reload: true
+    - name: Start Promtail service
+      ansible.builtin.systemd:
+        name: promtail
+        state: started
+        enabled: true
